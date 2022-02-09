@@ -8,6 +8,10 @@ pub const backends = struct {
     pub const dummy = struct {
         pub const create = @import("./backends/dummy/dummy.zig").create;
     };
+
+    pub const vulkan = struct {
+        pub const create = @import("./backends/vulkan/vulkan.zig").create;
+    };
 };
 
 pub usingnamespace @import("./binding_model.zig");
