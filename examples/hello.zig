@@ -13,5 +13,8 @@ pub fn main() !void {
 
     var adapter = try instance.requestAdapter(.{ .power_preference = .high_performance });
 
+    var device = try adapter.requestDevice(.{});
+    defer device.destroy();
+
     std.log.info("gpu: {s}", .{ adapter.properties.name });
 }

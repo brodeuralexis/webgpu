@@ -38,8 +38,14 @@ pub fn create(instance: *vulkan.Instance, physical_device: vk.PhysicalDevice) !*
 
     var features = instance.vki.getPhysicalDeviceFeatures(physical_device);
 
-    var driver = std.mem.zeroInit(vk.PhysicalDeviceDriverProperties, .{});
-    var properties2 = std.mem.zeroInit(vk.PhysicalDeviceProperties2, .{ .p_next = &driver });
+    var driver: vk.PhysicalDeviceDriverProperties = undefined;
+    driver.s_type = .physical_device_driver_properties;
+    driver.p_next = null;
+
+    var properties2: vk.PhysicalDeviceProperties2 = undefined;
+    properties2.s_type = .physical_device_properties_2;
+    properties2.p_next = &driver;
+
     instance.vki.getPhysicalDeviceProperties2(physical_device, &properties2);
 
     adapter.features = calculateSupportedFeatures(features);
@@ -67,7 +73,11 @@ pub fn destroy(adapter: *Adapter) void {
 fn requestDevice(super: *webgpu.Adapter, descriptor: webgpu.DeviceDescriptor) webgpu.Adapter.RequestDeviceError!*webgpu.Device {
     var adapter = @fieldParentPtr(Adapter, "super", super);
 
-    var device = try vulkan.Device.create(adapter, descriptor);
+    var device = vulkan.Device.create(adapter, descriptor)
+        catch |err| switch (err) {
+            error.OutOfMemory => |_err| return _err,
+            else => return error.Failed,
+        };
 
     return &device.super;
 }

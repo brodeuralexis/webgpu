@@ -6,6 +6,7 @@ const webgpu = @import("../../../webgpu.zig");
 const vulkan = @import("../vulkan.zig");
 const vk = @import("../vk.zig");
 const queue_families = @import("../queue_families.zig");
+const log = @import("../log.zig");
 
 const Device = @This();
 
@@ -35,6 +36,8 @@ super: webgpu.Device,
 
 instance: *vulkan.Instance,
 
+adapter_handle: vk.PhysicalDevice,
+
 allocator: Allocator,
 
 handle: vk.Device,
@@ -57,7 +60,17 @@ pub fn create(adapter: *vulkan.Adapter, descriptor: webgpu.DeviceDescriptor) !*D
 
     device.instance = adapter.instance;
 
+    device.adapter_handle = adapter.handle;
+
     device.families = adapter.families;
+
+    if (!(try device.checkDeviceLayersSupport())) {
+        return error.MissingDeviceLayers;
+    }
+
+    if (!(try device.checkDeviceExtensionsSupport())) {
+        return error.MissingDeviceExtensions;
+    }
 
     const queue_priorities: f32 = 1;
 
@@ -74,10 +87,10 @@ pub fn create(adapter: *vulkan.Adapter, descriptor: webgpu.DeviceDescriptor) !*D
         .flags = vk.DeviceCreateFlags{},
         .queue_create_info_count = 1,
         .p_queue_create_infos = @ptrCast([*]const vk.DeviceQueueCreateInfo, &queue_create_info),
-        .enabled_layer_count = 0,
-        .pp_enabled_layer_names = undefined,
-        .enabled_extension_count = 0,
-        .pp_enabled_extension_names = undefined,
+        .enabled_layer_count = vulkan.DEVICE_LAYERS.len,
+        .pp_enabled_layer_names = @ptrCast([*]const [*:0]const u8, &vulkan.DEVICE_LAYERS),
+        .enabled_extension_count = vulkan.DEVICE_EXTENSIONS.len,
+        .pp_enabled_extension_names = @ptrCast([*]const [*:0]const u8, &vulkan.DEVICE_EXTENSIONS),
         .p_enabled_features = &features,
     };
 
@@ -109,4 +122,73 @@ fn createBuffer(super: *webgpu.Device, descriptor: webgpu.BufferDescriptor) webg
     var buffer = try vulkan.Buffer.create(device, descriptor);
 
     return &buffer.super;
+}
+
+fn checkDeviceLayersSupport(device: *Device) !bool {
+    var layers_len: u32 = undefined;
+    if ((try device.instance.vki.enumerateDeviceLayerProperties(device.adapter_handle, &layers_len, null)) != .success) {
+        return error.Failed;
+    }
+
+    var layers = try device.instance.allocator.alloc(vk.LayerProperties, layers_len);
+    defer device.instance.allocator.free(layers);
+    if ((try device.instance.vki.enumerateDeviceLayerProperties(device.adapter_handle, &layers_len, layers.ptr)) != .success) {
+        return error.Failed;
+    }
+
+    for (vulkan.DEVICE_LAYERS) |validation_layer| {
+        const validation_layer_name = std.mem.sliceTo(validation_layer, 0);
+        var found = false;
+
+        for (layers) |layer| {
+            if (std.mem.eql(u8, validation_layer_name, std.mem.sliceTo(&layer.layer_name, 0))) {
+                found = true;
+                break;
+            }
+        }
+
+        if (!found) {
+            log.err("Missing required device layer: {s}", .{ validation_layer_name });
+            return false;
+        } else {
+            log.debug("Found required device layer: {s}", .{ validation_layer_name });
+        }
+    }
+
+    return true;
+}
+
+fn checkDeviceExtensionsSupport(device: *Device) !bool {
+    var extensions_len: u32 = undefined;
+    if ((try device.instance.vki.enumerateDeviceExtensionProperties(device.adapter_handle, null, &extensions_len, null)) != .success) {
+        return error.Failed;
+    }
+
+    var extensions = try device.instance.allocator.alloc(vk.ExtensionProperties, extensions_len);
+    defer device.instance.allocator.free(extensions);
+    if ((try device.instance.vki.enumerateDeviceExtensionProperties(device.adapter_handle, null, &extensions_len, extensions.ptr)) != .success) {
+        return error.Failed;
+    }
+
+    for (vulkan.DEVICE_EXTENSIONS) |surface_extension| {
+        const surface_extension_name = std.mem.sliceTo(surface_extension, 0);
+
+        var found = false;
+
+        for (extensions) |extension| {
+            if (std.mem.eql(u8, surface_extension_name, std.mem.sliceTo(&extension.extension_name, 0))) {
+                found = true;
+                break;
+            }
+        }
+
+        if (!found) {
+            log.err("Missing required device extension: {s}", .{ surface_extension_name });
+            return false;
+        } else {
+            log.debug("Found required device extension: {s}", .{ surface_extension_name });
+        }
+    }
+
+    return true;
 }

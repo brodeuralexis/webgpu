@@ -7,6 +7,7 @@ const vulkan = @import("../vulkan.zig");
 const vk = @import("../vk.zig");
 const module = @import("../../../utilities/module.zig");
 const queue_families = @import("../queue_families.zig");
+const log = @import("../log.zig");
 
 const Adapter = @import("./Adapter.zig");
 
@@ -15,6 +16,8 @@ const Instance = @This();
 pub const BaseDispatch = vk.BaseWrapper(.{
     .createInstance = true,
     .getInstanceProcAddr = true,
+    .enumerateInstanceLayerProperties = true,
+    .enumerateInstanceExtensionProperties = true,
 });
 
 pub const InstanceDispatch = vk.InstanceWrapper(.{
@@ -23,10 +26,11 @@ pub const InstanceDispatch = vk.InstanceWrapper(.{
     .getPhysicalDeviceProperties = true,
     .getPhysicalDeviceProperties2 = true,
     .getPhysicalDeviceFeatures = true,
-    .enumerateDeviceExtensionProperties = true,
     .createDevice = true,
     .getDeviceProcAddr = true,
     .getPhysicalDeviceQueueFamilyProperties = true,
+    .enumerateDeviceLayerProperties = true,
+    .enumerateDeviceExtensionProperties = true,
 });
 
 const vtable = webgpu.Instance.VTable{
@@ -49,7 +53,7 @@ vki: InstanceDispatch,
 low_power_adapter: ?*Adapter,
 high_performance_adapter: ?*Adapter,
 
-pub fn create(descriptor: webgpu.InstanceDescriptor) webgpu.Instance.CreateError!*Instance {
+pub fn create(descriptor: webgpu.InstanceDescriptor) !*Instance {
     var instance = try descriptor.allocator.create(Instance);
     errdefer descriptor.allocator.destroy(instance);
 
@@ -66,6 +70,14 @@ pub fn create(descriptor: webgpu.InstanceDescriptor) webgpu.Instance.CreateError
 
     instance.vkb = BaseDispatch.load(instance.get_instance_proc_addr) catch return error.Failed;
 
+    if (!(try instance.checkInstanceLayersSupport())) {
+        return error.MissingInstanceLayers;
+    }
+
+    if (!(try instance.checkInstanceExtensionsSupport())) {
+        return error.MissingInstanceExtensions;
+    }
+
     const application_info = vk.ApplicationInfo{
         .p_application_name = null,
         .application_version = 0,
@@ -74,13 +86,13 @@ pub fn create(descriptor: webgpu.InstanceDescriptor) webgpu.Instance.CreateError
         .api_version = vk.API_VERSION_1_2,
     };
 
-    const create_info = vk.InstanceCreateInfo{
+    var create_info = vk.InstanceCreateInfo{
         .flags = vk.InstanceCreateFlags.fromInt(0),
         .p_application_info = &application_info,
-        .enabled_extension_count = 0,
-        .pp_enabled_extension_names = undefined,
-        .enabled_layer_count = 0,
-        .pp_enabled_layer_names = undefined,
+        .enabled_layer_count = vulkan.INSTANCE_LAYERS.len,
+        .pp_enabled_layer_names = @ptrCast([*]const [*:0]const u8, &vulkan.INSTANCE_LAYERS),
+        .enabled_extension_count = vulkan.INSTANCE_EXTENSIONS.len,
+        .pp_enabled_extension_names = @ptrCast([*]const [*:0]const u8, &vulkan.INSTANCE_EXTENSIONS),
     };
 
     instance.handle = instance.vkb.createInstance(&create_info, null) catch return error.Failed;
@@ -202,4 +214,73 @@ fn scorePhysicalDevice(instance: *Instance, physical_device: vk.PhysicalDevice, 
     }
 
     return score;
+}
+
+fn checkInstanceLayersSupport(instance: *Instance) !bool {
+    var layers_len: u32 = undefined;
+    if ((try instance.vkb.enumerateInstanceLayerProperties(&layers_len, null)) != .success) {
+        return error.Failed;
+    }
+
+    var layers = try instance.allocator.alloc(vk.LayerProperties, layers_len);
+    defer instance.allocator.free(layers);
+    if ((try instance.vkb.enumerateInstanceLayerProperties(&layers_len, layers.ptr)) != .success) {
+        return error.Failed;
+    }
+
+    for (vulkan.INSTANCE_LAYERS) |validation_layer| {
+        const validation_layer_name = std.mem.sliceTo(validation_layer, 0);
+        var found = false;
+
+        for (layers) |layer| {
+            if (std.mem.eql(u8, validation_layer_name, std.mem.sliceTo(&layer.layer_name, 0))) {
+                found = true;
+                break;
+            }
+        }
+
+        if (!found) {
+            log.err("Missing required instance layer: {s}", .{ validation_layer_name });
+            return false;
+        } else {
+            log.debug("Found required instance layer: {s}", .{ validation_layer_name });
+        }
+    }
+
+    return true;
+}
+
+fn checkInstanceExtensionsSupport(instance: *Instance) !bool {
+    var extensions_len: u32 = undefined;
+    if ((try instance.vkb.enumerateInstanceExtensionProperties(null, &extensions_len, null)) != .success) {
+        return error.Failed;
+    }
+
+    var extensions = try instance.allocator.alloc(vk.ExtensionProperties, extensions_len);
+    defer instance.allocator.free(extensions);
+    if ((try instance.vkb.enumerateInstanceExtensionProperties(null, &extensions_len, extensions.ptr)) != .success) {
+        return error.Failed;
+    }
+
+    for (vulkan.INSTANCE_EXTENSIONS) |surface_extension| {
+        const surface_extension_name = std.mem.sliceTo(surface_extension, 0);
+
+        var found = false;
+
+        for (extensions) |extension| {
+            if (std.mem.eql(u8, surface_extension_name, std.mem.sliceTo(&extension.extension_name, 0))) {
+                found = true;
+                break;
+            }
+        }
+
+        if (!found) {
+            log.err("Missing required instance extension: {s}", .{ surface_extension_name });
+            return false;
+        } else {
+            log.debug("Found required instance extension: {s}", .{ surface_extension_name });
+        }
+    }
+
+    return true;
 }

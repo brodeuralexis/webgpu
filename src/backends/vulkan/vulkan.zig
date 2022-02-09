@@ -33,7 +33,8 @@ pub const Texture = @import("./resource/Texture.zig");
 pub const TextureView = @import("./resource/TextureView.zig");
 
 pub fn create(descriptor: webgpu.InstanceDescriptor) webgpu.Instance.CreateError!*webgpu.Instance {
-    var instance = try Instance.create(descriptor);
+    var instance = Instance.create(descriptor)
+        catch return error.Failed;
     errdefer instance.super.destroy();
 
     return &instance.super;
