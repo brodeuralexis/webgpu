@@ -2,10 +2,11 @@ const std = @import("std");
 
 const Allocator = std.mem.Allocator;
 
-const vk = @import("./vk.zig");
-const constants = @import("./constants.zig");
-const webgpu = @import("../../webgpu.zig");
-const module = @import("../../utilities/module.zig");
+const webgpu = @import("../../../webgpu.zig");
+const vulkan = @import("../vulkan.zig");
+const vk = @import("../vk.zig");
+const module = @import("../../../utilities/module.zig");
+const queue_families = @import("../queue_families.zig");
 
 const Adapter = @import("./Adapter.zig");
 
@@ -23,6 +24,9 @@ pub const InstanceDispatch = vk.InstanceWrapper(.{
     .getPhysicalDeviceProperties2 = true,
     .getPhysicalDeviceFeatures = true,
     .enumerateDeviceExtensionProperties = true,
+    .createDevice = true,
+    .getDeviceProcAddr = true,
+    .getPhysicalDeviceQueueFamilyProperties = true,
 });
 
 const vtable = webgpu.Instance.VTable{
@@ -45,7 +49,7 @@ vki: InstanceDispatch,
 low_power_adapter: ?*Adapter,
 high_performance_adapter: ?*Adapter,
 
-pub fn create(descriptor: webgpu.InstanceDescriptor) webgpu.Instance.CreateError!*webgpu.Instance {
+pub fn create(descriptor: webgpu.InstanceDescriptor) webgpu.Instance.CreateError!*Instance {
     var instance = try descriptor.allocator.create(Instance);
     errdefer descriptor.allocator.destroy(instance);
 
@@ -53,7 +57,7 @@ pub fn create(descriptor: webgpu.InstanceDescriptor) webgpu.Instance.CreateError
 
     instance.allocator = descriptor.allocator;
 
-    instance.module = module.load(instance.allocator, constants.LIBVULKAN_NAME) orelse return error.Failed;
+    instance.module = module.load(instance.allocator, vulkan.LIBVULKAN_NAME) orelse return error.Failed;
     errdefer module.free(instance.module);
 
     instance.get_instance_proc_addr = @ptrCast(vk.PfnGetInstanceProcAddr,
@@ -86,7 +90,7 @@ pub fn create(descriptor: webgpu.InstanceDescriptor) webgpu.Instance.CreateError
     instance.low_power_adapter = null;
     instance.high_performance_adapter = null;
 
-    return &instance.super;
+    return instance;
 }
 
 fn destroy(super: *webgpu.Instance) void {
@@ -161,6 +165,12 @@ fn scorePhysicalDevice(instance: *Instance, physical_device: vk.PhysicalDevice, 
     const properties = instance.vki.getPhysicalDeviceProperties(physical_device);
 
     var score: usize = 0;
+
+    var families = try queue_families.find(instance, physical_device);
+
+    if (!families.isComplete()) {
+        return null;
+    }
 
     switch (options.power_preference) {
         .low_power => {

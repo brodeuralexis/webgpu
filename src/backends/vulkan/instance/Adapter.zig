@@ -2,11 +2,10 @@ const std = @import("std");
 
 const Allocator = std.mem.Allocator;
 
-const vk = @import("./vk.zig");
-const backend = @import("./vulkan.zig");
-const constants = @import("./constants.zig");
-const webgpu = @import("../../webgpu.zig");
-const Instance = @import("./Instance.zig");
+const webgpu = @import("../../../webgpu.zig");
+const vulkan = @import("../vulkan.zig");
+const vk = @import("../vk.zig");
+const queue_families = @import("../queue_families.zig");
 
 const Adapter = @This();
 
@@ -16,19 +15,25 @@ pub const vtable = webgpu.Adapter.VTable{
 
 super: webgpu.Adapter,
 
-instance: *Instance,
+instance: *vulkan.Instance,
+
 handle: vk.PhysicalDevice,
+
 features: webgpu.Features,
 limits: webgpu.Limits,
 properties: webgpu.AdapterProperties,
 
-pub fn create(instance: *Instance, physical_device: vk.PhysicalDevice) !*Adapter {
+families: queue_families.QueueFamilies,
+
+
+pub fn create(instance: *vulkan.Instance, physical_device: vk.PhysicalDevice) !*Adapter {
     var adapter = try instance.allocator.create(Adapter);
     errdefer instance.allocator.destroy(adapter);
 
     adapter.super.__vtable = &vtable;
 
     adapter.instance = instance;
+
     adapter.handle = physical_device;
 
     var features = instance.vki.getPhysicalDeviceFeatures(physical_device);
@@ -48,6 +53,8 @@ pub fn create(instance: *Instance, physical_device: vk.PhysicalDevice) !*Adapter
     }
     adapter.super.properties = &adapter.properties;
 
+    adapter.families = try queue_families.find(instance, physical_device);
+
     return adapter;
 }
 
@@ -59,9 +66,10 @@ pub fn destroy(adapter: *Adapter) void {
 
 fn requestDevice(super: *webgpu.Adapter, descriptor: webgpu.DeviceDescriptor) webgpu.Adapter.RequestDeviceError!*webgpu.Device {
     var adapter = @fieldParentPtr(Adapter, "super", super);
-    _ = descriptor;
-    _ = adapter;
-    return webgpu.Adapter.RequestDeviceError.Failed;
+
+    var device = try vulkan.Device.create(adapter, descriptor);
+
+    return &device.super;
 }
 
 fn calculateSupportedFeatures(_features: vk.PhysicalDeviceFeatures) webgpu.Features {

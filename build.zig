@@ -16,6 +16,7 @@ pub fn build(b: *Builder) void {
 
 const examples = [_][]const u8{
     "hello",
+    "buffer"
 };
 
 fn buildExamples(b: *Builder) void {
