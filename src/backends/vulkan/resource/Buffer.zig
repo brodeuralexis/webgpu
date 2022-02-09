@@ -16,17 +16,16 @@ pub const vtable = webgpu.Buffer.VTable{
 
 super: webgpu.Buffer,
 
-device: *vulkan.Device,
-
 handle: vk.Buffer,
 
 pub fn create(device: *vulkan.Device, descriptor: webgpu.BufferDescriptor) webgpu.Device.CreateBufferError!*Buffer {
     var buffer = try device.allocator.create(Buffer);
     errdefer device.allocator.destroy(buffer);
 
-    buffer.super.__vtable = &vtable;
-
-    buffer.device = device;
+    buffer.super = .{
+        .__vtable = &vtable,
+        .device = &device.super,
+    };
 
     const create_info = vk.BufferCreateInfo{
         .flags = .{},
@@ -34,7 +33,7 @@ pub fn create(device: *vulkan.Device, descriptor: webgpu.BufferDescriptor) webgp
         .usage = toBufferUsageFlags(descriptor.usage),
         .sharing_mode = .exclusive,
         .queue_family_index_count = 1,
-        .p_queue_family_indices = @ptrCast([*]const u32, &device.families.graphics.?),
+        .p_queue_family_indices = @ptrCast([*]const u32, &device.queue_families.graphics.?),
     };
 
     buffer.handle = device.vkd.createBuffer(device.handle, &create_info, null)
@@ -46,9 +45,10 @@ pub fn create(device: *vulkan.Device, descriptor: webgpu.BufferDescriptor) webgp
 
 fn destroy(super: *webgpu.Buffer) void {
     var buffer = @fieldParentPtr(Buffer, "super", super);
+    var device = @fieldParentPtr(vulkan.Device, "super", super.device);
 
-    buffer.device.vkd.destroyBuffer(buffer.device.handle, buffer.handle, null);
-    buffer.device.allocator.destroy(buffer);
+    device.vkd.destroyBuffer(device.handle, buffer.handle, null);
+    device.allocator.destroy(buffer);
 }
 
 fn getConstMappedRange(super: *webgpu.Buffer, offset: usize, size: usize) webgpu.Buffer.GetConstMappedRangeError![]align(16) const u8 {

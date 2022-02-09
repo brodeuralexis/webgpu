@@ -12,17 +12,17 @@ pub const ComputePipeline = struct {
 
     super: webgpu.ComputePipeline,
 
-    device: *dummy.Device,
-
     pub fn create(device: *dummy.Device, descriptor: webgpu.ComputePipelineDescriptor) webgpu.Device.CreateComputePipelineError!*ComputePipeline {
         _ = descriptor;
 
         var compute_pipeline = try device.allocator.create(ComputePipeline);
         errdefer device.allocator.destroy(compute_pipeline);
 
-        compute_pipeline.super.__vtable = &vtable;
 
-        compute_pipeline.device = device;
+        compute_pipeline.super = .{
+            .__vtable = &vtable,
+            .device = &device.super,
+        };
 
         return compute_pipeline;
     }
@@ -55,17 +55,16 @@ pub const RenderPipeline = struct {
 
     super: webgpu.RenderPipeline,
 
-    device: *dummy.Device,
-
     pub fn create(device: *dummy.Device, descriptor: webgpu.RenderPipelineDescriptor) webgpu.Device.CreateRenderPipelineError!*RenderPipeline {
         _ = descriptor;
 
         var render_pipeline = try device.allocator.create(RenderPipeline);
         errdefer device.allocator.destroy(render_pipeline);
 
-        render_pipeline.super.__vtable = &vtable;
-
-        render_pipeline.device = device;
+        render_pipeline.super = .{
+            .__vtable = &vtable,
+            .device = &device.super,
+        };
 
         return render_pipeline;
     }
@@ -98,17 +97,16 @@ pub const ShaderModule = struct {
 
     super: webgpu.ShaderModule,
 
-    device: *dummy.Device,
-
     pub fn create(device: *dummy.Device, descriptor: webgpu.ShaderModuleDescriptor) webgpu.Device.CreateShaderModuleError!*ShaderModule {
         _ = descriptor;
 
         var shader_module = try device.allocator.create(ShaderModule);
         errdefer device.allocator.destroy(shader_module);
 
-        shader_module.super.__vtable = &vtable;
-
-        shader_module.device = device;
+        shader_module.super = .{
+            .__vtable = &vtable,
+            .device = &device.super,
+        };
 
         return shader_module;
     }

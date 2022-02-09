@@ -15,17 +15,16 @@ const vtable = webgpu.Queue.VTable{
 
 super: webgpu.Queue,
 
-device: *vulkan.Device,
-
 handle: vk.Queue,
 
 pub fn create(device: *vulkan.Device, queue_family: u32, queue_index: u32) !*Queue {
     var queue = try device.allocator.create(Queue);
     errdefer device.allocator.destroy(queue);
 
-    queue.super.__vtable = &vtable;
-
-    queue.device = device;
+    queue.super = .{
+        .__vtable = &vtable,
+        .device = &device.super,
+    };
 
     queue.handle = device.vkd.getDeviceQueue(device.handle, queue_family, queue_index);
 

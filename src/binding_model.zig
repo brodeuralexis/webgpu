@@ -8,6 +8,8 @@ pub const BindGroup = struct {
 
     __vtable: *const VTable,
 
+    device: *webgpu.Device,
+
     pub inline fn destroy(bind_group: *BindGroup) void {
         bind_group.__vtable.destroy_fn(bind_group);
     }
@@ -20,6 +22,8 @@ pub const BindGroupLayout = struct {
 
     __vtable: *const VTable,
 
+    device: *webgpu.Device,
+
     pub inline fn destroy(bind_group_layout: *BindGroupLayout) void {
         bind_group_layout.__vtable.destroy_fn(bind_group_layout);
     }
@@ -31,6 +35,8 @@ pub const PipelineLayout = struct {
     };
 
     __vtable: *const VTable,
+
+    device: *webgpu.Device,
 
     pub inline fn destroy(pipeline_layout: *PipelineLayout) void {
         pipeline_layout.__vtable.destroy_fn(pipeline_layout);

@@ -10,6 +10,8 @@ pub const ComputePipeline = struct {
 
     __vtable: *const VTable,
 
+    device: *webgpu.Device,
+
     pub inline fn destroy(compute_pipeline: *ComputePipeline) void {
         compute_pipeline.__vtable.destroy_fn(compute_pipeline);
     }
@@ -32,6 +34,8 @@ pub const RenderPipeline = struct {
 
     __vtable: *const VTable,
 
+    device: *webgpu.Device,
+
     pub inline fn destroy(render_pipeline: *RenderPipeline) void {
         render_pipeline.__vtable.destroy_fn(render_pipeline);
     }
@@ -53,6 +57,8 @@ pub const ShaderModule = struct {
     };
 
     __vtable: *const VTable,
+
+    device: *webgpu.Device,
 
     pub inline fn destroy(shader_module: *ShaderModule) void {
         return shader_module.__vtable.destroy_fn(shader_module);

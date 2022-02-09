@@ -8,6 +8,8 @@ pub const CommandBuffer = struct {
 
     __vtable: *const VTable,
 
+    device: *webgpu.Device,
+
     pub inline fn destroy(command_buffer: *CommandBuffer) void {
         command_buffer.__vtable.destroy_fn(command_buffer);
     }
@@ -32,6 +34,8 @@ pub const CommandEncoder = struct {
     };
 
     __vtable: *const VTable,
+
+    device: *webgpu.Device,
 
     pub inline fn destroy(command_encoder: *CommandEncoder) void {
         command_encoder.__vtable.destroy_fn(command_encoder);
@@ -150,6 +154,8 @@ pub const ComputePassEncoder = struct {
 
     __vtable: *const VTable,
 
+    device: *webgpu.Device,
+
     pub inline fn destroy(compute_pass_encoder: *ComputePassEncoder) void {
         compute_pass_encoder.__vtable.destroy_fn(compute_pass_encoder);
     }
@@ -230,6 +236,8 @@ pub const RenderBundle = struct {
 
     __vtable: *const VTable,
 
+    device: *webgpu.Device,
+
     pub inline fn destroy(render_bundle: *RenderBundle) void {
         render_bundle.__vtable.destroy_fn(render_bundle);
     }
@@ -253,6 +261,8 @@ pub const RenderBundleEncoder = struct {
     };
 
     __vtable: *const VTable,
+
+    device: *webgpu.Device,
 
     pub inline fn destroy(render_bundle_encoder: *RenderBundleEncoder) void {
         return render_bundle_encoder.__vtable.destroy_fn(render_bundle_encoder);
@@ -337,6 +347,8 @@ pub const RenderPassEncoder = struct {
     };
 
     __vtable: *const VTable,
+
+    device: *webgpu.Device,
 
     pub inline fn destroy(render_pass_encoder: *RenderPassEncoder) void {
         render_pass_encoder.__vtable.destroy_fn(render_pass_encoder);

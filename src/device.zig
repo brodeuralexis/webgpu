@@ -23,8 +23,11 @@ pub const Device = struct {
 
     __vtable: *const VTable,
 
-    features: *const webgpu.Features,
-    limits: *const webgpu.Limits,
+    instance: *webgpu.Instance,
+    adapter: *webgpu.Adapter,
+
+    features: webgpu.Features,
+    limits: webgpu.Limits,
 
     queue: *Queue,
 
@@ -141,6 +144,8 @@ pub const Queue = struct {
     };
 
     __vtable: *const VTable,
+
+    device: *Device,
 
     pub const SubmitError = error {
         OutOfMemory,

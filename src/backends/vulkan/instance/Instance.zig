@@ -6,7 +6,7 @@ const webgpu = @import("../../../webgpu.zig");
 const vulkan = @import("../vulkan.zig");
 const vk = @import("../vk.zig");
 const module = @import("../../../utilities/module.zig");
-const queue_families = @import("../queue_families.zig");
+const QueueFamilies = @import("../QueueFamilies.zig");
 const log = @import("../log.zig");
 
 const Adapter = @import("./Adapter.zig");
@@ -57,7 +57,9 @@ pub fn create(descriptor: webgpu.InstanceDescriptor) !*Instance {
     var instance = try descriptor.allocator.create(Instance);
     errdefer descriptor.allocator.destroy(instance);
 
-    instance.super.__vtable = &vtable;
+    instance.super = .{
+        .__vtable = &vtable,
+    };
 
     instance.allocator = descriptor.allocator;
 
@@ -178,7 +180,7 @@ fn scorePhysicalDevice(instance: *Instance, physical_device: vk.PhysicalDevice, 
 
     var score: usize = 0;
 
-    var families = try queue_families.find(instance, physical_device);
+    var families = try QueueFamilies.findRaw(instance, physical_device);
 
     if (!families.isComplete()) {
         return null;

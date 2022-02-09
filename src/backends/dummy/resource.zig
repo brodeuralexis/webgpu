@@ -14,17 +14,16 @@ pub const Buffer = struct {
 
     super: webgpu.Buffer,
 
-    device: *dummy.Device,
-
     data: []align(16) u8,
 
     pub fn create(device: *dummy.Device, descriptor: webgpu.BufferDescriptor) webgpu.Device.CreateBufferError!*Buffer {
         var buffer = try device.allocator.create(Buffer);
         errdefer device.allocator.destroy(buffer);
 
-        buffer.super.__vtable = &vtable;
-
-        buffer.device = device;
+        buffer.super = .{
+            .__vtable = &vtable,
+            .device = &device.super,
+        };
 
         buffer.data = try device.allocator.allocAdvanced(u8, 16, descriptor.size, .at_least);
         errdefer device.allocator.free(buffer.data);
@@ -78,17 +77,16 @@ pub const QuerySet = struct {
 
     super: webgpu.QuerySet,
 
-    device: *dummy.Device,
-
     pub fn create(device: *dummy.Device, descriptor: webgpu.QuerySetDescriptor) dummy.Device.CreateQuerySetError!*QuerySet {
         _ = descriptor;
 
         var query_set = try device.allocator.create(QuerySet);
         errdefer device.allocator.destroy(query_set);
 
-        query_set.super.__vtable = &vtable;
-
-        query_set.device = device;
+        query_set.super = .{
+            .__vtable = &vtable,
+            .device = &device.super,
+        };
 
         return query_set;
     }
@@ -107,17 +105,16 @@ pub const Sampler = struct {
 
     super: webgpu.Sampler,
 
-    device: *dummy.Device,
-
     pub fn create(device: *dummy.Device, descriptor: webgpu.SamplerDescriptor) webgpu.Device.CreateSamplerError!*Sampler {
         _ = descriptor;
 
         var sampler = try device.allocator.create(Sampler);
         errdefer device.allocator.destroy(sampler);
 
-        sampler.super.__vtable = &vtable;
-
-        sampler.device = device;
+        sampler.super = .{
+            .__vtable = &vtable,
+            .device = &device.super,
+        };
 
         return sampler;
     }
@@ -137,8 +134,6 @@ pub const SwapChain = struct {
 
     super: webgpu.SwapChain,
 
-    device: *dummy.Device,
-
     texture_view: *TextureView,
 
     pub fn create(device: *dummy.Device, descriptor: webgpu.SwapChainDescriptor) webgpu.Device.CreateSwapChainError!*SwapChain {
@@ -147,9 +142,10 @@ pub const SwapChain = struct {
         var swap_chain = try device.allocator.create(SwapChain);
         errdefer device.allocator.destroy(swap_chain);
 
-        swap_chain.super.__vtable = &vtable;
-
-        swap_chain.device = device;
+        swap_chain.super = .{
+            .__vtable = &vtable,
+            .device = &device.super,
+        };
 
         swap_chain.texture_view = try TextureView.create(device, .{});
         errdefer swap_chain.texture_view.super.destroy();
@@ -180,17 +176,16 @@ pub const Texture = struct {
 
     super: webgpu.Texture,
 
-    device: *dummy.Device,
-
     pub fn create(device: *dummy.Device, descriptor: webgpu.TextureDescriptor) webgpu.Device.CreateTextureError!*Texture {
         _ = descriptor;
 
         var texture = try device.allocator.create(Texture);
         errdefer device.allocator.destroy(texture);
 
-        texture.super.__vtable = &vtable;
-
-        texture.device = device;
+         texture.super = .{
+            .__vtable = &vtable,
+            .device = &device.super,
+        };
 
         return texture;
     }
@@ -217,19 +212,17 @@ pub const TextureView = struct {
 
     super: webgpu.TextureView,
 
-    device: *dummy.Device,
-    texture: *Texture,
-
     pub fn create(device: *dummy.Device, texture: *Texture, descriptor: webgpu.TextureViewDescriptor) webgpu.Texture.CreateViewError!*TextureView {
         _ = descriptor;
 
         var texture_view = try device.allocator.create(TextureView);
         errdefer device.allocator.destroy(texture_view);
 
-        texture_view.super.__vtable = &vtable;
-
-        texture_view.device = device;
-        texture_view.texture = texture;
+        texture_view.super = .{
+            .__vtable = &vtable,
+            .device = &device.super,
+            .texture = &texture.super,
+        };
 
         return texture_view;
     }

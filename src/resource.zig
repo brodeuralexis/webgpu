@@ -12,6 +12,8 @@ pub const Buffer = struct {
 
     __vtable: *const VTable,
 
+    device: *webgpu.Device,
+
     pub inline fn destroy(buffer: *Buffer) void {
         buffer.__vtable.destroy_fn(buffer);
     }
@@ -52,6 +54,8 @@ pub const QuerySet = struct {
 
     __vtable: *const VTable,
 
+    device: *webgpu.Device,
+
     pub inline fn destroy(query_set: *QuerySet) void {
         query_set.__vtable.destroy_fn(query_set);
     }
@@ -63,6 +67,8 @@ pub const Sampler = struct {
     };
 
     __vtable: *const VTable,
+
+    device: *webgpu.Device,
 
     pub inline fn destroy(sampler: *Sampler) void {
         sampler.__vtable.destroy_fn(sampler);
@@ -76,6 +82,8 @@ pub const SwapChain = struct {
     };
 
     __vtable: *const VTable,
+
+    device: *webgpu.Device,
 
     pub inline fn destroy(swap_chain: *SwapChain) void {
         return swap_chain.__vtable.destroy_fn(swap_chain);
@@ -93,6 +101,8 @@ pub const Texture = struct {
     };
 
     __vtable: *const VTable,
+
+    device: *webgpu.Device,
 
     pub inline fn destroy(texture: *Texture) void {
         texture.__vtable.destroy_fn(texture);
@@ -113,6 +123,9 @@ pub const TextureView = struct {
     };
 
     __vtable: *const VTable,
+
+    texture: *Texture,
+    device: *webgpu.Device,
 
     pub inline fn destroy(texture_view: *TextureView) void {
         texture_view.__vtable.destroy_fn(texture_view);

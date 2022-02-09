@@ -51,9 +51,16 @@ pub const Adapter = struct {
 
     __vtable: *const VTable,
 
-    features: *const webgpu.Features,
-    limits: *const webgpu.Limits,
-    properties: *const webgpu.AdapterProperties,
+    instance: *Instance,
+
+    features: webgpu.Features,
+    limits: webgpu.Limits,
+
+    adapter_type: webgpu.AdapterType,
+    backend_type: webgpu.BackendType,
+    vendor_id: u32,
+    device_id: u32,
+    name: [:0]const u8,
 
     pub const RequestDeviceError = error {
         OutOfMemory,
@@ -72,6 +79,8 @@ pub const Surface = struct {
     };
 
     __vtable: *const VTable,
+
+    instance: *Instance,
 
     pub inline fn destroy(surface: *Surface) void {
         surface.__vtable.destroy_fn(surface);

@@ -5,7 +5,7 @@ const Allocator = std.mem.Allocator;
 const webgpu = @import("../../../webgpu.zig");
 const vulkan = @import("../vulkan.zig");
 const vk = @import("../vk.zig");
-const queue_families = @import("../queue_families.zig");
+const QueueFamilies = @import("../QueueFamilies.zig");
 
 const Adapter = @This();
 
@@ -15,59 +15,55 @@ pub const vtable = webgpu.Adapter.VTable{
 
 super: webgpu.Adapter,
 
-instance: *vulkan.Instance,
-
 handle: vk.PhysicalDevice,
-
-features: webgpu.Features,
-limits: webgpu.Limits,
-properties: webgpu.AdapterProperties,
-
-families: queue_families.QueueFamilies,
-
+queue_families: QueueFamilies,
 
 pub fn create(instance: *vulkan.Instance, physical_device: vk.PhysicalDevice) !*Adapter {
     var adapter = try instance.allocator.create(Adapter);
     errdefer instance.allocator.destroy(adapter);
 
-    adapter.super.__vtable = &vtable;
-
-    adapter.instance = instance;
+    adapter.super = .{
+        .__vtable = &vtable,
+        .instance = &instance.super,
+        .features = undefined,
+        .limits = undefined,
+        .device_id = undefined,
+        .vendor_id = undefined,
+        .backend_type = .vulkan,
+        .adapter_type = undefined,
+        .name = undefined,
+    };
 
     adapter.handle = physical_device;
 
-    var features = instance.vki.getPhysicalDeviceFeatures(physical_device);
+    var properties = instance.vki.getPhysicalDeviceProperties(adapter.handle);
 
-    var driver: vk.PhysicalDeviceDriverProperties = undefined;
-    driver.s_type = .physical_device_driver_properties;
-    driver.p_next = null;
+    const name = try instance.allocator.dupeZ(u8, std.mem.sliceTo(&properties.device_name, 0));
+    errdefer instance.allocator.free(name);
 
-    var properties2: vk.PhysicalDeviceProperties2 = undefined;
-    properties2.s_type = .physical_device_properties_2;
-    properties2.p_next = &driver;
+    adapter.super.features = adapter.calculateSupportedFeatures();
+    adapter.super.limits = adapter.calculateSupportedLimits();
 
-    instance.vki.getPhysicalDeviceProperties2(physical_device, &properties2);
+    adapter.super.device_id = properties.device_id;
+    adapter.super.vendor_id = properties.vendor_id;
+    adapter.super.adapter_type = switch (properties.device_type) {
+        .integrated_gpu => .integrated_gpu,
+        .discrete_gpu => .discrete_gpu,
+        .cpu => .cpu,
+        else => .unknown,
+    };
+    adapter.super.name = name;
 
-    adapter.features = calculateSupportedFeatures(features);
-    adapter.super.features = &adapter.features;
-    adapter.limits = calculateSupportedLimits(properties2.properties);
-    adapter.super.limits = &adapter.limits;
-    adapter.properties = try calculateProperties(adapter, properties2.properties, driver);
-    errdefer {
-        instance.allocator.free(adapter.properties.name);
-        instance.allocator.free(adapter.properties.driver_descripton);
-    }
-    adapter.super.properties = &adapter.properties;
-
-    adapter.families = try queue_families.find(instance, physical_device);
+    adapter.queue_families = try QueueFamilies.find(adapter);
 
     return adapter;
 }
 
 pub fn destroy(adapter: *Adapter) void {
-    adapter.instance.allocator.free(adapter.properties.name);
-    adapter.instance.allocator.free(adapter.properties.driver_descripton);
-    adapter.instance.allocator.destroy(adapter);
+    var instance = @fieldParentPtr(vulkan.Instance, "super", adapter.super.instance);
+
+    instance.allocator.free(adapter.super.name);
+    instance.allocator.destroy(adapter);
 }
 
 fn requestDevice(super: *webgpu.Adapter, descriptor: webgpu.DeviceDescriptor) webgpu.Adapter.RequestDeviceError!*webgpu.Device {
@@ -82,7 +78,11 @@ fn requestDevice(super: *webgpu.Adapter, descriptor: webgpu.DeviceDescriptor) we
     return &device.super;
 }
 
-fn calculateSupportedFeatures(_features: vk.PhysicalDeviceFeatures) webgpu.Features {
+fn calculateSupportedFeatures(adapter: *Adapter) webgpu.Features {
+    var instance = @fieldParentPtr(vulkan.Instance, "super", adapter.super.instance);
+
+    var _features = instance.vki.getPhysicalDeviceFeatures(adapter.handle);
+
     var features = webgpu.Features{};
 
     features.texture_compression_bc = _features.texture_compression_bc == vk.TRUE;
@@ -94,7 +94,11 @@ fn calculateSupportedFeatures(_features: vk.PhysicalDeviceFeatures) webgpu.Featu
     return features;
 }
 
-fn calculateSupportedLimits(properties: vk.PhysicalDeviceProperties) webgpu.Limits {
+fn calculateSupportedLimits(adapter: *Adapter) webgpu.Limits {
+    var instance = @fieldParentPtr(vulkan.Instance, "super", adapter.super.instance);
+
+    var properties = instance.vki.getPhysicalDeviceProperties(adapter.handle);
+
     var limits = webgpu.Limits{};
 
     limits.max_texture_dimension1d = properties.limits.max_image_dimension_1d;
@@ -129,26 +133,4 @@ fn calculateSupportedLimits(properties: vk.PhysicalDeviceProperties) webgpu.Limi
     );
 
     return limits;
-}
-
-fn calculateProperties(adapter: *Adapter, properties: vk.PhysicalDeviceProperties, driver: vk.PhysicalDeviceDriverProperties) !webgpu.AdapterProperties {
-    const name = try adapter.instance.allocator.dupeZ(u8, std.mem.sliceTo(&properties.device_name, 0));
-    errdefer adapter.instance.allocator.free(name);
-
-    const driver_descripton = try adapter.instance.allocator.dupeZ(u8, std.mem.sliceTo(&driver.driver_info, 0));
-    errdefer adapter.instance.allocator.free(driver_descripton);
-
-    return webgpu.AdapterProperties{
-        .device_id = properties.device_id,
-        .vendor_id = properties.vendor_id,
-        .name = name,
-        .driver_descripton = driver_descripton,
-        .adapter_type = switch (properties.device_type) {
-            .integrated_gpu => .integrated_gpu,
-            .discrete_gpu => .discrete_gpu,
-            .cpu => .cpu,
-            else => .unknown,
-        },
-        .backend_type = .vulkan,
-    };
 }

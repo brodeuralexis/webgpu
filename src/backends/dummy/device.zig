@@ -29,34 +29,29 @@ pub const Device = struct {
 
     allocator: Allocator,
 
-    instance: *dummy.Instance,
-
-    features: webgpu.Features,
-    limits: webgpu.Limits,
-
     queue: *Queue,
 
-    pub fn create(instance: *dummy.Instance, descriptor: webgpu.DeviceDescriptor) webgpu.Adapter.RequestDeviceError!*Device {
+    pub fn create(adapter: *dummy.Adapter, descriptor: webgpu.DeviceDescriptor) webgpu.Adapter.RequestDeviceError!*Device {
+        var instance = @fieldParentPtr(dummy.Instance, "super", adapter.super.instance);
+
         _ = descriptor;
 
         var device = try instance.allocator.create(Device);
         errdefer instance.allocator.destroy(device);
 
-        device.super.__vtable = &vtable;
+        device.super = .{
+            .__vtable = &vtable,
+            .instance = &instance.super,
+            .adapter = &adapter.super,
+            .features = .{},
+            .limits = .{},
+            .queue = undefined,
+        };
 
         device.allocator = instance.allocator;
 
-        device.instance = instance;
-
-        device.features = .{};
-        device.limits = .{};
-
         device.queue = try Queue.create(device);
         errdefer device.queue.destroy(device);
-
-        device.super.features = &device.features;
-        device.super.limits = &device.limits;
-
         device.super.queue = &device.queue.super;
 
         return device;
@@ -172,7 +167,9 @@ pub const Queue = struct {
         var queue = try device.allocator.create(Queue);
         errdefer device.allocator.destroy(queue);
 
-        queue.super.__vtable = &vtable;
+        queue.super = .{
+            .__vtable = &vtable,
+        };
 
         return queue;
     }

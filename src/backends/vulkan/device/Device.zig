@@ -5,7 +5,7 @@ const Allocator = std.mem.Allocator;
 const webgpu = @import("../../../webgpu.zig");
 const vulkan = @import("../vulkan.zig");
 const vk = @import("../vk.zig");
-const queue_families = @import("../queue_families.zig");
+const QueueFamilies = @import("../QueueFamilies.zig");
 const log = @import("../log.zig");
 
 const Device = @This();
@@ -34,35 +34,36 @@ pub const vtable = webgpu.Device.VTable{
 
 super: webgpu.Device,
 
-instance: *vulkan.Instance,
-
-adapter_handle: vk.PhysicalDevice,
-
 allocator: Allocator,
 
 handle: vk.Device,
 
-families: queue_families.QueueFamilies,
+queue_families: QueueFamilies,
 
 vkd: DeviceDispatch,
 
 queue: *vulkan.Queue,
 
 pub fn create(adapter: *vulkan.Adapter, descriptor: webgpu.DeviceDescriptor) !*Device {
+    var instance = @fieldParentPtr(vulkan.Instance, "super", adapter.super.instance);
+
     _ = descriptor;
 
-    var device = try adapter.instance.allocator.create(Device);
-    errdefer adapter.instance.allocator.destroy(device);
+    var device = try instance.allocator.create(Device);
+    errdefer instance.allocator.destroy(device);
 
-    device.super.__vtable = &vtable;
+    device.super = .{
+        .__vtable = &vtable,
+        .instance = &instance.super,
+        .adapter = &adapter.super,
+        .queue = undefined,
+        .features = .{},
+        .limits = .{},
+    };
 
-    device.allocator = adapter.instance.allocator;
+    device.allocator = instance.allocator;
 
-    device.instance = adapter.instance;
-
-    device.adapter_handle = adapter.handle;
-
-    device.families = adapter.families;
+    device.queue_families = adapter.queue_families;
 
     if (!(try device.checkDeviceLayersSupport())) {
         return error.MissingDeviceLayers;
@@ -76,7 +77,7 @@ pub fn create(adapter: *vulkan.Adapter, descriptor: webgpu.DeviceDescriptor) !*D
 
     const queue_create_info = vk.DeviceQueueCreateInfo{
         .flags = vk.DeviceQueueCreateFlags{},
-        .queue_family_index = adapter.families.graphics.?,
+        .queue_family_index = device.queue_families.graphics.?,
         .queue_count = 1,
         .p_queue_priorities = @ptrCast([*]const f32, &queue_priorities),
     };
@@ -94,13 +95,13 @@ pub fn create(adapter: *vulkan.Adapter, descriptor: webgpu.DeviceDescriptor) !*D
         .p_enabled_features = &features,
     };
 
-    device.handle = adapter.instance.vki.createDevice(adapter.handle, &create_info, null)
+    device.handle = instance.vki.createDevice(adapter.handle, &create_info, null)
         catch return error.Failed;
-    device.vkd = DeviceDispatch.load(device.handle, adapter.instance.vki.dispatch.vkGetDeviceProcAddr)
+    device.vkd = DeviceDispatch.load(device.handle, instance.vki.dispatch.vkGetDeviceProcAddr)
         catch return error.Failed;
     errdefer device.vkd.destroyDevice(device.handle, null);
 
-    device.queue = vulkan.Queue.create(device, adapter.families.graphics.?, 0)
+    device.queue = vulkan.Queue.create(device, adapter.queue_families.graphics.?, 0)
         catch return error.Failed;
     errdefer device.queue.destroy(device);
 
@@ -125,14 +126,17 @@ fn createBuffer(super: *webgpu.Device, descriptor: webgpu.BufferDescriptor) webg
 }
 
 fn checkDeviceLayersSupport(device: *Device) !bool {
+    var instance = @fieldParentPtr(vulkan.Instance, "super", device.super.instance);
+    var adapter = @fieldParentPtr(vulkan.Adapter, "super", device.super.adapter);
+
     var layers_len: u32 = undefined;
-    if ((try device.instance.vki.enumerateDeviceLayerProperties(device.adapter_handle, &layers_len, null)) != .success) {
+    if ((try instance.vki.enumerateDeviceLayerProperties(adapter.handle, &layers_len, null)) != .success) {
         return error.Failed;
     }
 
-    var layers = try device.instance.allocator.alloc(vk.LayerProperties, layers_len);
-    defer device.instance.allocator.free(layers);
-    if ((try device.instance.vki.enumerateDeviceLayerProperties(device.adapter_handle, &layers_len, layers.ptr)) != .success) {
+    var layers = try instance.allocator.alloc(vk.LayerProperties, layers_len);
+    defer instance.allocator.free(layers);
+    if ((try instance.vki.enumerateDeviceLayerProperties(adapter.handle, &layers_len, layers.ptr)) != .success) {
         return error.Failed;
     }
 
@@ -159,14 +163,17 @@ fn checkDeviceLayersSupport(device: *Device) !bool {
 }
 
 fn checkDeviceExtensionsSupport(device: *Device) !bool {
+    var instance = @fieldParentPtr(vulkan.Instance, "super", device.super.instance);
+    var adapter = @fieldParentPtr(vulkan.Adapter, "super", device.super.adapter);
+
     var extensions_len: u32 = undefined;
-    if ((try device.instance.vki.enumerateDeviceExtensionProperties(device.adapter_handle, null, &extensions_len, null)) != .success) {
+    if ((try instance.vki.enumerateDeviceExtensionProperties(adapter.handle, null, &extensions_len, null)) != .success) {
         return error.Failed;
     }
 
-    var extensions = try device.instance.allocator.alloc(vk.ExtensionProperties, extensions_len);
-    defer device.instance.allocator.free(extensions);
-    if ((try device.instance.vki.enumerateDeviceExtensionProperties(device.adapter_handle, null, &extensions_len, extensions.ptr)) != .success) {
+    var extensions = try instance.allocator.alloc(vk.ExtensionProperties, extensions_len);
+    defer instance.allocator.free(extensions);
+    if ((try instance.vki.enumerateDeviceExtensionProperties(adapter.handle, null, &extensions_len, extensions.ptr)) != .success) {
         return error.Failed;
     }
 

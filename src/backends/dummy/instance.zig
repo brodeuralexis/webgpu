@@ -81,46 +81,37 @@ pub const Adapter = struct {
 
     super: webgpu.Adapter,
 
-    instance: *Instance,
-
-    features: webgpu.Features,
-    limits: webgpu.Limits,
-    properties: webgpu.AdapterProperties,
-
     pub fn create(instance: *Instance, options: webgpu.RequestAdapterOptions) webgpu.Instance.RequestAdapterError!*Adapter {
         _ = options;
 
         var adapter = try instance.allocator.create(Adapter);
         errdefer instance.allocator.destroy(adapter);
 
-        adapter.super.__vtable = &vtable;
-
-        adapter.instance = instance;
-
-        adapter.features = .{};
-        adapter.limits = .{};
-        adapter.properties.adapter_type = .unknown;
-        adapter.properties.backend_type = .unknown;
-        adapter.properties.device_id = 0;
-        adapter.properties.vendor_id = 0;
-        adapter.properties.name = "Dummy";
-        adapter.properties.driver_descripton = "Dummy Driver";
-
-        adapter.super.features = &adapter.features;
-        adapter.super.limits = &adapter.limits;
-        adapter.super.properties = &adapter.properties;
+        adapter.super = .{
+            .__vtable = &vtable,
+            .instance = &instance.super,
+            .features = .{},
+            .limits = .{},
+            .adapter_type = .unknown,
+            .backend_type = .unknown,
+            .device_id = 0,
+            .vendor_id = 0,
+            .name = "Dummy",
+        };
 
         return adapter;
     }
 
     pub fn destroy(adapter: *Adapter) void {
-        adapter.instance.allocator.destroy(adapter);
+        var instance = @fieldParentPtr(Instance, "super", adapter.super.instance);
+
+        instance.allocator.destroy(adapter);
     }
 
     fn requestDevice(super: *webgpu.Adapter, descriptor: webgpu.DeviceDescriptor) webgpu.Adapter.RequestDeviceError!*webgpu.Device {
         var adapter = @fieldParentPtr(Adapter, "super", super);
 
-        var device = try dummy.Device.create(adapter.instance, descriptor);
+        var device = try dummy.Device.create(adapter, descriptor);
 
         return &device.super;
     }
@@ -134,25 +125,25 @@ pub const Surface = struct {
 
     super: webgpu.Surface,
 
-    instance: *Instance,
-
     pub fn create(instance: *Instance, descriptor: webgpu.SurfaceDescriptor) webgpu.Instance.CreateSurfaceError!*Surface {
         _ = descriptor;
 
         var surface = try instance.allocator.create(Surface);
         errdefer instance.allocator.destroy(surface);
 
-        surface.super.__vtable = &vtable;
-
-        surface.instance = instance;
+        surface.super = .{
+            .__vtable = &vtable,
+            .instance = &instance.super,
+        };
 
         return surface;
     }
 
     fn destroy(super: *webgpu.Surface) void {
         var surface = @fieldParentPtr(Surface, "super", super);
+        var instance = @fieldParentPtr(Instance, "super", surface.super.instance);
 
-        surface.instance.allocator.destroy(surface);
+        instance.allocator.destroy(surface);
     }
 
     fn getPreferredFormat(super: *webgpu.Surface) webgpu.TextureFormat {

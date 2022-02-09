@@ -10,25 +10,25 @@ pub const CommandBuffer = struct {
 
     super: webgpu.CommandBuffer,
 
-    device: *dummy.Device,
-
     pub fn create(device: *dummy.Device, descriptor: webgpu.CommandBufferDescriptor) !*CommandBuffer {
         _ = descriptor;
 
         var command_buffer = try device.allocator.create(CommandBuffer);
         errdefer device.allocator.destroy(command_buffer);
 
-        command_buffer.super.__vtable = &vtable;
-
-        command_buffer.device = device;
+        command_buffer.super = .{
+            .__vtable = &vtable,
+            .device = &device.super,
+        };
 
         return command_buffer;
     }
 
     fn destroy(super: *webgpu.CommandBuffer) void {
         var command_buffer = @fieldParentPtr(CommandBuffer, "super", super);
+        var device = @fieldParentPtr(dummy.Device, "super", super.device);
 
-        command_buffer.device.allocator.destroy(command_buffer);
+        device.allocator.destroy(command_buffer);
     }
 };
 
@@ -52,39 +52,41 @@ pub const CommandEncoder = struct {
 
     super: webgpu.CommandEncoder,
 
-    device: *dummy.Device,
-
     pub fn create(device: *dummy.Device, descriptor: webgpu.CommandEncoderDescriptor) webgpu.Device.CreateCommandEncoderError!*CommandEncoder {
         _ = descriptor;
 
         var command_encoder = try device.allocator.create(CommandEncoder);
         errdefer device.allocator.destroy(command_encoder);
 
-        command_encoder.super.__vtable = &vtable;
-
-        command_encoder.device = device;
+        command_encoder.super = .{
+            .__vtable = &vtable,
+            .device = &device.super,
+        };
 
         return command_encoder;
     }
 
     fn destroy(super: *webgpu.CommandEncoder) void {
         var command_encoder = @fieldParentPtr(CommandEncoder, "super", super);
+        var device = @fieldParentPtr(dummy.Device, "super", super.device);
 
-        command_encoder.device.allocator.destroy(command_encoder);
+        device.allocator.destroy(command_encoder);
     }
 
     fn beginComputePass(super: *webgpu.CommandEncoder, descriptor: webgpu.ComputePassDescriptor) webgpu.CommandEncoder.BeginComputePassError!*webgpu.ComputePassEncoder {
-        var command_encoder = @fieldParentPtr(CommandEncoder, "super", super);
+        _ = @fieldParentPtr(CommandEncoder, "super", super);
+        var device = @fieldParentPtr(dummy.Device, "super", super.device);
 
-        var compute_pass_encoder = try ComputePassEncoder.create(command_encoder.device, descriptor);
+        var compute_pass_encoder = try ComputePassEncoder.create(device, descriptor);
 
         return &compute_pass_encoder.super;
     }
 
     fn beginRenderPass(super: *webgpu.CommandEncoder, descriptor: webgpu.RenderPassDescriptor) webgpu.CommandEncoder.BeginRenderPassError!*webgpu.RenderPassEncoder {
-        var command_encoder = @fieldParentPtr(CommandEncoder, "super", super);
+        _ = @fieldParentPtr(CommandEncoder, "super", super);
+        var device = @fieldParentPtr(dummy.Device, "super", super.device);
 
-        var render_pass_encoder = try RenderPassEncoder.create(command_encoder.device, descriptor);
+        var render_pass_encoder = try RenderPassEncoder.create(device, descriptor);
 
         return &render_pass_encoder.super;
     }
@@ -127,9 +129,10 @@ pub const CommandEncoder = struct {
     }
 
     fn finish(super: *webgpu.CommandEncoder, descriptor: webgpu.CommandBufferDescriptor) webgpu.CommandEncoder.FinishError!*webgpu.CommandBuffer {
-        var command_encoder = @fieldParentPtr(CommandEncoder, "super", super);
+        _ = @fieldParentPtr(CommandEncoder, "super", super);
+        var device = @fieldParentPtr(dummy.Device, "super", super.device);
 
-        var command_buffer = try CommandBuffer.create(command_encoder.device, descriptor);
+        var command_buffer = try CommandBuffer.create(device, descriptor);
 
         return &command_buffer.super;
     }
@@ -181,25 +184,25 @@ pub const ComputePassEncoder = struct {
 
     super: webgpu.ComputePassEncoder,
 
-    device: *dummy.Device,
-
     pub fn create(device: *dummy.Device, descriptor: webgpu.ComputePassDescriptor) webgpu.CommandEncoder.BeginComputePassError!*ComputePassEncoder {
         _ = descriptor;
 
         var compute_pass_encoder = try device.allocator.create(ComputePassEncoder);
         errdefer device.allocator.destroy(compute_pass_encoder);
 
-        compute_pass_encoder.super.__vtable = &vtable;
-
-        compute_pass_encoder.device = device;
+        compute_pass_encoder.super = .{
+            .__vtable = &vtable,
+            .device = &device.super,
+        };
 
         return compute_pass_encoder;
     }
 
     fn destroy(super: *webgpu.ComputePassEncoder) void {
         var compute_pass_encoder = @fieldParentPtr(ComputePassEncoder, "super", super);
+        var device = @fieldParentPtr(dummy.Device, "super", super.device);
 
-        compute_pass_encoder.device.allocator.destroy(compute_pass_encoder);
+        device.allocator.destroy(compute_pass_encoder);
     }
 
     fn beginPipelineStatisticsQuery(super: *webgpu.ComputePassEncoder, query_set: *webgpu.QuerySet, query_index: u32) webgpu.ComputePassEncoder.BeginPipelineStatisticsQueryError!void {
@@ -263,23 +266,23 @@ pub const RenderBundle = struct {
 
     super: webgpu.RenderBundle,
 
-    device: *dummy.Device,
-
     pub fn create(device: *dummy.Device) !*RenderBundle {
         var render_bundle = try device.allocator.create(RenderBundle);
         errdefer device.allocator.destroy(render_bundle);
 
-        render_bundle.super.__vtable = &vtable;
-
-        render_bundle.device = device;
+        render_bundle.super = .{
+            .__vtable = &vtable,
+            .device = &device.super,
+        };
 
         return render_bundle;
     }
 
     fn destroy(super: *webgpu.RenderBundle) void {
         var render_bundle = @fieldParentPtr(RenderBundle, "super", super);
+        var device = @fieldParentPtr(dummy.Device, "super", super.device);
 
-        render_bundle.device.allocator.destroy(render_bundle);
+        device.allocator.destroy(render_bundle);
     }
 };
 
@@ -302,25 +305,25 @@ pub const RenderBundleEncoder = struct {
 
     super: webgpu.RenderBundleEncoder,
 
-    device: *dummy.Device,
-
     pub fn create(device: *dummy.Device, descriptor: webgpu.RenderBundleEncoderDescriptor) webgpu.CommandEncoder.BeginComputePassError!*RenderBundleEncoder {
         _ = descriptor;
 
         var compute_pass_encoder = try device.allocator.create(RenderBundleEncoder);
         errdefer device.allocator.destroy(compute_pass_encoder);
 
-        compute_pass_encoder.super.__vtable = &vtable;
-
-        compute_pass_encoder.device = device;
+        compute_pass_encoder.super = .{
+            .__vtable = &vtable,
+            .device = &device.super,
+        };
 
         return compute_pass_encoder;
     }
 
     fn destroy(super: *webgpu.RenderBundleEncoder) void {
         var render_bundle_encoder = @fieldParentPtr(RenderBundleEncoder, "super", super);
+        var device = @fieldParentPtr(dummy.Device, "super", super.device);
 
-        render_bundle_encoder.device.allocator.destroy(render_bundle_encoder);
+        device.allocator.destroy(render_bundle_encoder);
     }
 
     fn draw(super: *webgpu.RenderBundleEncoder, vertex_count: u32, instance_count: u32, first_vertex: u32, first_instance: u32) void {
@@ -353,9 +356,10 @@ pub const RenderBundleEncoder = struct {
     }
 
     fn finish(super: *webgpu.RenderBundleEncoder) webgpu.RenderBundleEncoder.FinishError!*webgpu.RenderBundle {
-        var render_bundle_encoder = @fieldParentPtr(RenderBundleEncoder, "super", super);
+        _ = @fieldParentPtr(RenderBundleEncoder, "super", super);
+        var device = @fieldParentPtr(dummy.Device, "super", super.device);
 
-        var render_bundle = try RenderBundle.create(render_bundle_encoder.device);
+        var render_bundle = try RenderBundle.create(device);
 
         return &render_bundle.super;
     }
@@ -457,25 +461,25 @@ pub const RenderPassEncoder = struct {
 
     super: webgpu.RenderPassEncoder,
 
-    device: *dummy.Device,
-
     pub fn create(device: *dummy.Device, descriptor: webgpu.RenderPassDescriptor) webgpu.CommandEncoder.BeginRenderPassError!*RenderPassEncoder {
         _ = descriptor;
 
         var render_pass_encoder = try device.allocator.create(RenderPassEncoder);
         errdefer device.allocator.destroy(render_pass_encoder);
 
-        render_pass_encoder.super.__vtable = &vtable;
-
-        render_pass_encoder.device = device;
+        render_pass_encoder.super = .{
+            .__vtable = &vtable,
+            .device = &device.super,
+        };
 
         return render_pass_encoder;
     }
 
     fn destroy(super: *webgpu.RenderPassEncoder) void {
         var render_pass_encoder = @fieldParentPtr(RenderPassEncoder, "super", super);
+        var device = @fieldParentPtr(dummy.Device, "super", super.device);
 
-        render_pass_encoder.device.allocator.destroy(render_pass_encoder);
+        device.allocator.destroy(render_pass_encoder);
     }
 
     fn beginOcclusionQuery(super: *webgpu.RenderPassEncoder, query_index: u32) void {

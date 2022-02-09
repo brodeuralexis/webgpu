@@ -16,5 +16,5 @@ pub fn main() !void {
     var device = try adapter.requestDevice(.{});
     defer device.destroy();
 
-    std.log.info("gpu: {s}", .{ adapter.properties.name });
+    std.log.info("Graphics Card: {s}", .{ device.adapter.name });
 }
