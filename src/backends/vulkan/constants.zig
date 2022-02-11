@@ -9,7 +9,7 @@ else switch (builtin.os.tag) {
     .windows => "vulkan-1.dll",
     .macos => "libvulkan.1.dylib",
     .freebsd, .openbsd => "libvulkan.so",
-    else => "libvulkan.1.so",
+    else => "libvulkan.so.1",
 };
 
 pub const ENABLE_VALIDATION_LAYER = if (@hasDecl(root, "webgpu_vulkan_validation_layer"))
