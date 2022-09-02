@@ -1,0 +1,4 @@
+deps:
+  webgpu-core:
+    local: ../webgpu-core
+    root: src/core.zig

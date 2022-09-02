@@ -1,0 +1,20 @@
+pkgs:
+  webgpu:
+    version: 1.0.0
+    description: A cross-platform webgpu implementation in the Zig programming language
+    license: MIT
+    homepage_url: https
+    source_url: https//github.com/brodeuralexis/webgpu
+    root: webgpu.zig
+    files:
+      LICENSE.md
+      README.md
+      build.zig
+      src/*.zig
+deps:
+  webgpu-core:
+    local: webgpu-core
+    root: src/core.zig
+  webgpu-backend-dummy:
+    local: webgpu-backend-dummy
+    root: src/backend.zig
